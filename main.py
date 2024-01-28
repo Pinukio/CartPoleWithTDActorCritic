@@ -76,3 +76,37 @@ class ActorCritic(nn.Module):
         loss.mean().backward()
         # 계산된 Gradient로 Gradient Descent(Policy Network는 -를 붙여 Gradient Ascent, Value Network는 Descent)
         self.optimizer.step()
+
+def main():
+    env = gym.make('CartPole-v1')
+    model = ActorCritic()
+    print_interval = 20
+    score = 0.0
+
+    for n_epi in range(10000):
+        done = False
+        s = env.reset()[0]
+        while not done:
+            for t in range(n_rollout):
+                prob = model.pi(torch.from_numpy(s).float())
+                # Categorical.sample()은 확률 분포에 의한 Sampling을 진행해 준다.
+                # Policy에 의한 Action Sampling
+                m = Categorical(prob)
+                a = m.sample().item()
+                
+                s_prime, r, done, trun, _ = env.step(a)
+                model.put_data((s,a,r,s_prime,done))
+
+                s = s_prime
+                score += r
+
+                if done:
+                    break
+
+            model.train_net()
+
+        if n_epi % print_interval == 0 and n_epi != 0:
+            print("# of episode: {}, avg score: {}".format(n_epi, score/print_interval))
+            score = 0.0
+            
+        env.close()
